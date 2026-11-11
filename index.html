@@ -48,8 +48,8 @@ const biomes=[
 ];
 const blocks=[{name:'Tierra',icon:'🟫',color:'#967751',count:28},{name:'Piedra',icon:'⬛',color:'#777c7d',count:12},{name:'Madera',icon:'🪵',color:'#9c6845',count:16},{name:'Cristal',icon:'💠',color:'#70c7c1',count:8},{name:'Ladrillo',icon:'🧱',color:'#bd7661',count:10},{name:'Linterna',icon:'🏮',color:'#f0c967',count:6}];
 let map=new Uint8Array(WW*WH),biomeAt=new Uint8Array(WW),heights=new Array(WW),decor=[],entities=[],particles=[];
-let player={x:5*TILE,y:0,vx:0,vy:0,w:22,h:40,hp:100,face:1,onGround:false,invuln:0};let camera={x:0,y:0};
-let keys={},mouse={x:0,y:0,down:false},selected=0,toolLevel=1,unlockedTool=1,minedBlocks=0,mining=null,buildMode=false,essence=0,kills=0,boss=null,bossWins=0,bossDefeated=false,frame=0,lastSpawn=0,toastTimer=0,scale=1;
+let player={x:5*TILE,y:0,vx:0,vy:0,w:22,h:40,hp:100,face:1,onGround:false,invuln:0,commands:{left:new Set(),right:new Set()}};let camera={x:0,y:0};
+let mouse={x:0,y:0,down:false},touchCommandPointers=new Map(),selected=0,toolLevel=1,unlockedTool=1,minedBlocks=0,mining=null,buildMode=false,essence=0,kills=0,boss=null,bossWins=0,bossDefeated=false,frame=0,lastSpawn=0,toastTimer=0,scale=1;
 const bossNames=['Guardián de Raíces','Reina de Cristal','Coloso del Vacío'];
 const idx=(x,y)=>y*WW+x,inside=(x,y)=>x>=0&&x<WW&&y>=0&&y<WH;
 function biomeFor(x){return biomes[Math.max(0,Math.min(9,Math.floor(x/BIOME_W)))];}
@@ -75,7 +75,10 @@ function renderHotbar(){const h=document.getElementById('hotbar');h.innerHTML=''
 document.querySelectorAll('.tool-level').forEach(button=>button.addEventListener('click',()=>selectTool(Number(button.dataset.tool))));
 renderHotbar();renderTools();
 function rectHits(x,y,w,h){let l=Math.floor(x/TILE),r=Math.floor((x+w-1)/TILE),t=Math.floor(y/TILE),b=Math.floor((y+h-1)/TILE);for(let yy=t;yy<=b;yy++)for(let xx=l;xx<=r;xx++)if(solid(xx,yy))return true;return false;}
-function movePlayer(){let dir=(keys.right||keys.ArrowRight||keys.KeyD?1:0)-(keys.left||keys.ArrowLeft||keys.KeyA?1:0);player.vx=dir*3.1;if(dir)player.face=dir;player.vy=Math.min(11,player.vy+.48);let nx=player.x+player.vx;if(!rectHits(nx,player.y,player.w,player.h))player.x=nx;else player.vx=0;let ny=player.y+player.vy;player.onGround=false;if(!rectHits(player.x,ny,player.w,player.h))player.y=ny;else{if(player.vy>0){player.onGround=true;player.y=Math.floor((player.y+player.h)/TILE)*TILE-player.h;}player.vy=0;}player.x=Math.max(TILE,Math.min((WW-2)*TILE,player.x));if(player.invuln>0)player.invuln--;if(player.hp<=0){player.hp=100;player.x=5*TILE;player.y=heights[5]*TILE-player.h;player.vx=player.vy=0;essence=Math.max(0,essence-1);showToast('Te reagrupas en el campamento…');refreshQuest();}}
+function setPlayerCommand(command,source,active){const sources=player.commands[command];if(!sources)return;if(active)sources.add(source);else sources.delete(source);}
+ function clearPlayerCommands(){player.commands.left.clear();player.commands.right.clear();touchCommandPointers.clear();}
+ function jumpPlayer(){if(player.onGround)player.vy=-9.2;}
+ function movePlayer(){const dir=(player.commands.right.size>0?1:0)-(player.commands.left.size>0?1:0);player.vx=dir*3.1;if(dir)player.face=dir;player.vy=Math.min(11,player.vy+.48);let nx=player.x+player.vx;if(!rectHits(nx,player.y,player.w,player.h))player.x=nx;else player.vx=0;let ny=player.y+player.vy;player.onGround=false;if(!rectHits(player.x,ny,player.w,player.h))player.y=ny;else{if(player.vy>0){player.onGround=true;player.y=Math.floor((player.y+player.h)/TILE)*TILE-player.h;}player.vy=0;}player.x=Math.max(TILE,Math.min((WW-2)*TILE,player.x));if(player.invuln>0)player.invuln--;if(player.hp<=0){player.hp=100;player.x=5*TILE;player.y=heights[5]*TILE-player.h;player.vx=player.vy=0;essence=Math.max(0,essence-1);showToast('Te reagrupas en el campamento…');refreshQuest();}}
 function spawnEnemy(x,force=false){let bx=Math.max(0,Math.min(9,Math.floor(x/BIOME_W))),b=biomes[bx],tx=Math.max(2,Math.min(WW-3,Math.floor(x)));let ex=tx*TILE,ey=heights[tx]*TILE-25;if(Math.abs(ex-player.x)<110&&!force)return;entities.push({x:ex,y:ey,w:25,h:25,hp:2,max:2,spd:.6+rand(frame+tx)*.5,color:b.enemy,name:b.creature,boss:false,phase:rand(tx+frame)*6,hit:0});}
 spawnEnemy(18,true);spawnEnemy(30,true);
 function summonBoss(){if(essence<8||boss||bossDefeated)return;essence-=8;let tx=Math.min(WW-4,Math.floor(player.x/TILE)+12);let hp=24+bossWins*10;boss={x:tx*TILE,y:heights[tx]*TILE-58,w:56,h:58,hp,max:hp,spd:1.05+bossWins*.18,hit:0,phase:0,boss:true,rank:bossWins};entities.push(boss);document.getElementById('bossHealth').classList.add('show');showToast(`¡${bossNames[bossWins]} despierta!`);refreshQuest();}
@@ -117,10 +120,11 @@ canvas.addEventListener('pointermove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;if
 canvas.addEventListener('pointerdown',e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(e.button===2){e.preventDefault();interact(true);}else if(e.button===0){e.preventDefault();if(buildMode)interact(true);else{mouse.down=true;canvas.setPointerCapture?.(e.pointerId);beginMining(targetTile());}}});
 addEventListener('pointerup',()=>{mouse.down=false;mining=null;});
 addEventListener('pointercancel',()=>{mouse.down=false;mining=null;});
-addEventListener('blur',()=>{mouse.down=false;mining=null;});
+addEventListener('blur',()=>{mouse.down=false;mining=null;clearPlayerCommands();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.repeat)return;if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){if(player.onGround)player.vy=-9.2;}if(e.code==='KeyJ'||e.code==='KeyF')attack();if(e.code==='KeyB')setBuild(!buildMode);if(e.code==='KeyE')document.getElementById('modal').classList.add('open');if(e.code==='Escape')document.getElementById('modal').classList.remove('open');if(/^Digit[1-6]$/.test(e.code)){selected=Number(e.code.slice(5))-1;renderHotbar();}});
-addEventListener('keyup',e=>{keys[e.code]=false;});
+const keyboardDirections={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
+ addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();const direction=keyboardDirections[e.code];if(direction)setPlayerCommand(direction,`keyboard:${e.code}`,true);if(e.repeat)return;if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW')jumpPlayer();if(e.code==='KeyJ'||e.code==='KeyF')attack();if(e.code==='KeyB')setBuild(!buildMode);if(e.code==='KeyE')document.getElementById('modal').classList.add('open');if(e.code==='Escape')document.getElementById('modal').classList.remove('open');if(/^Digit[1-6]$/.test(e.code)){selected=Number(e.code.slice(5))-1;renderHotbar();}});
+addEventListener('keyup',e=>{const direction=keyboardDirections[e.code];if(direction)setPlayerCommand(direction,`keyboard:${e.code}`,false);});
 document.getElementById('buildButton').onclick=()=>setBuild(!buildMode);
 document.getElementById('summonButton').onclick=summonBoss;
 document.getElementById('mapButton').onclick=()=>document.getElementById('modal').classList.add('open');
@@ -131,7 +135,9 @@ function startTouchMining(e){e.preventDefault();touchMine.setPointerCapture?.(e.
 touchMine.addEventListener('pointerdown',startTouchMining);
 document.getElementById('touchPlace').onclick=touchPlace;
 document.getElementById('touchAttack').onclick=attack;
-document.querySelectorAll('.touch button[data-key]').forEach(btn=>{const k=btn.dataset.key;const down=e=>{e.preventDefault();if(k==='left')keys.left=true;if(k==='right')keys.right=true;if(k==='jump'&&player.onGround)player.vy=-9.2;};const up=e=>{e.preventDefault();if(k==='left')keys.left=false;if(k==='right')keys.right=false;};btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointerleave',up);});
+function releaseTouchCommand(e){const command=touchCommandPointers.get(e.pointerId);if(command){setPlayerCommand(command,`touch:${e.pointerId}`,false);touchCommandPointers.delete(e.pointerId);}}
+ document.querySelectorAll('.touch button[data-key]').forEach(btn=>{const command=btn.dataset.key;btn.addEventListener('pointerdown',e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);if(command==='jump')jumpPlayer();else{setPlayerCommand(command,`touch:${e.pointerId}`,true);touchCommandPointers.set(e.pointerId,command);}});btn.addEventListener('lostpointercapture',releaseTouchCommand);});
+ addEventListener('pointerup',releaseTouchCommand);addEventListener('pointercancel',releaseTouchCommand);
 const grid=document.getElementById('biomeGrid');biomes.forEach((b,i)=>{const entry=document.createElement('div');entry.className='biome-entry';entry.innerHTML=`<span>${b.icon}</span><div><strong>${String(i+1).padStart(2,'0')} · ${b.name}</strong><small>Habitante: ${b.creature}</small></div>`;entry.onclick=()=>{player.x=Math.max(TILE,Math.min((WW-3)*TILE,(i*BIOME_W+8)*TILE));player.y=heights[Math.floor(player.x/TILE)]*TILE-player.h;player.vy=0;document.getElementById('modal').classList.remove('open');showToast(`Llegaste a ${b.name}`);};grid.appendChild(entry);});
 function update(){frame++;movePlayer();updateMining();enemyUpdate();spawnUpdate();if(toastTimer>0&&!--toastTimer)document.getElementById('toast').classList.remove('show');if(frame%12===0){updateBiomeUI();document.getElementById('hpText').textContent=`${Math.max(0,player.hp)} / 100`;document.getElementById('hpFill').style.width=`${Math.max(0,player.hp)}%`;}}
 function loop(){update();drawWorld();requestAnimationFrame(loop);}
