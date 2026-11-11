@@ -22,11 +22,11 @@
 Aventura 2D de exploración, combate, minería y construcción. Recorre diez biomas, reúne esencia derrotando criaturas y supera tres jefes en una progresión creciente. El mundo es procedural y se puede modificar bloque a bloque.
 
 ### Controles
-- **A / D** o **← / →**: moverte · **Espacio**: saltar
+- **A / D** o **← / →**: moverte · **Espacio**, **↑** o **W**: saltar
 - **Mantener clic izquierdo**: minar (o colocar una vez si Construir está activado); soltar o cambiar de bloque cancela el minado
 - **Clic derecho**: colocar el bloque seleccionado
 - **J / F**: atacar · **1–6**: elegir bloque · **B**: cambiar modo de construcción
-- **E**: abrir el atlas (haz clic en una región para viajar)
+- **E**: abrir el atlas (haz clic en una región para viajar) · **I** o **Inventario**: abrir el inventario y taller
 - En móvil: usa los controles táctiles; toca el mundo para minar.
 
 Derrota criaturas para ganar esencia. Al reunir **8**, invoca al jefe desde el botón Guardián. Los materiales se recuperan al minar; el atlas enumera las criaturas de las diez regiones. La dureza del bloque determina el tiempo de minado; mejora la herramienta al extraer 8, 24 y 48 bloques y selecciona su nivel con los botones **1–4**.
